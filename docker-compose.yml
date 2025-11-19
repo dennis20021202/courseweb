@@ -7,15 +7,15 @@ services:
     container_name: waterball-db
     restart: always
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}           # 讀取 .env
-      POSTGRES_USER: ${POSTGRES_USER}       # 讀取 .env
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD} # 讀取 .env
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"] # 這裡也改成變數
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -28,24 +28,41 @@ services:
     ports:
       - "8080:8080"
     environment:
-      # 使用變數組合連線字串
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    # 若後端也想要某種程度的熱載入 (需配合 DevTools)，可取消註解下方 volumes，
+    # 但 Java 通常需要重新編譯，不像前端那麼即時。
+    # volumes:
+    #   - ./backend/src:/app/src
     depends_on:
       db:
         condition: service_healthy
 
-  # 3. 前端服務 (Next.js)
+  # 3. 前端服務 (Next.js) - 開發模式設定
   frontend:
-    build: ./frontend
+    build: 
+      context: ./frontend
+      # 重要：指定構建目標為 'deps' 階段，這樣我們有 node_modules 但不會執行 build
+      target: deps 
     container_name: waterball-frontend
     restart: on-failure
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL} # 讀取 .env
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      # 某些系統 (如 Windows/WSL) 需要開啟輪詢才能偵測到檔案變更
+      WATCHPACK_POLLING: "true" 
+    volumes:
+      # 1. 把本地端的原始碼掛載進去，這樣修改才會即時生效
+      - ./frontend:/app
+      # 2. 保留容器內的 node_modules，避免被本地端的空資料夾覆蓋 (如果你本地沒下過 npm install)
+      - /app/node_modules
+      # 3. 避免 .next 資料夾衝突
+      - /app/.next
+    # 重要：覆蓋 Dockerfile 的啟動指令，改用開發模式
+    command: npm run dev
     depends_on:
       - backend
       
@@ -55,8 +72,8 @@ services:
     container_name: waterball-pgadmin
     restart: always
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}       # 讀取 .env
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD} # 讀取 .env
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
     ports:
       - "5050:80"
     volumes:
