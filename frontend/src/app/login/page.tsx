@@ -30,7 +30,13 @@ export default function LoginPage() {
         const data = await res.json();
         // 登入成功，將 Token 存入 localStorage
         localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify({ name: data.name, role: data.role }));
+        
+        // [修正]：這裡原本漏了 avatar，現在補上
+        localStorage.setItem("user", JSON.stringify({ 
+            name: data.name, 
+            role: data.role,
+            avatar: data.avatar 
+        }));
         
         // 強制重新整理以觸發 Layout 狀態更新，並跳轉回首頁
         window.location.href = "/"; 

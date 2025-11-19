@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 const COURSES = [
   {
@@ -120,7 +121,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Section 2: Features Grid (新截圖的內容) */}
+      {/* Section 2: Features Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
          {FEATURES.map((feature, idx) => (
             <div key={idx} className="bg-[#181a25] border border-white/5 rounded-2xl p-8 flex flex-col hover:bg-[#20222e] transition duration-300">
@@ -146,6 +147,48 @@ export default function Home() {
             </div>
          ))}
       </div>
+
+      {/* 新增：水球潘個人介紹區塊 */}
+      <section className="bg-[#181a25] border border-white/5 rounded-2xl p-8 md:p-12 flex flex-col md:flex-row items-center gap-8 md:gap-12">
+        {/* 左側：頭像 (使用 Image 元件，請確保圖片存在於 public/images/avatar_pan.webp) */}
+        <div className="flex-shrink-0 relative w-40 h-40 md:w-48 md:h-48 rounded-full overflow-hidden border-4 border-[#fbbf24]/20 shadow-2xl shadow-[#fbbf24]/10">
+            <Image
+              src="/images/avatar_pan.webp"
+              alt="水球潘"
+              fill
+              className="object-cover"
+            />
+        </div>
+
+        {/* 右側：文字內容 */}
+        <div className="flex-1 space-y-6 text-center md:text-left">
+            <div>
+                <h2 className="text-3xl font-bold text-white mb-2">水球潘</h2>
+                <p className="text-gray-400 text-sm md:text-base leading-relaxed">
+                    七年程式教育者 & 軟體設計學講師，致力於將複雜的軟體設計概念轉化為易於理解和實踐的教學內容。
+                </p>
+            </div>
+
+            <ul className="space-y-3">
+                {[
+                    "主修 Christopher Alexander 設計模式、軟體架構、分散式系統架構、Clean Architecture、領域驅動設計等領域",
+                    "過去 40 多場 Talk 平均 93 位觀眾參與",
+                    "主辦的學院社群一年內成長超過 6000 位成員",
+                    "帶領軟體工程方法論學習組織「GaaS」超過 200 多位成員，引領 30 組自組織團隊",
+                    "領域驅動設計社群核心志工 & 講師"
+                ].map((item, i) => (
+                    <li key={i} className="flex items-start gap-3 text-gray-300 text-sm md:text-base">
+                        <span className="flex-shrink-0 mt-1 text-[#fbbf24]">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </span>
+                        <span>{item}</span>
+                    </li>
+                ))}
+            </ul>
+        </div>
+      </section>
       
       {/* Footer */}
       <footer className="border-t border-white/10 pt-8 pb-12 text-center text-gray-500 text-sm">
