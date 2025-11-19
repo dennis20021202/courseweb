@@ -1,0 +1,65 @@
+# --- 系統與 IDE 相關 (通用) ---
+.DS_Store
+Thumbs.db
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+*.log
+
+# --- Docker 相關 ---
+# 忽略 Docker 產生的覆寫檔或本地資料夾 (如果有掛載本地目錄)
+docker-compose.override.yml
+db-data/
+postgres-data/
+
+# =========================
+# 環境變數 (重要：防止敏感資訊外洩)
+# =========================
+# 忽略所有目錄下的 .env 檔案 (包含根目錄與子目錄)
+.env
+
+# 前端特定的環境變數規則
+frontend/.env*.local
+
+# =========================
+# Frontend (Next.js)
+# =========================
+# 依賴套件 (絕對不要上傳，體積巨大)
+frontend/node_modules/
+node_modules/
+
+# Next.js 編譯產出
+frontend/.next/
+.next/
+frontend/out/
+frontend/build/
+frontend/dist/
+
+# debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =========================
+# Backend (Java / Spring Boot)
+# =========================
+# Maven 編譯產出 (絕對不要上傳)
+backend/target/
+target/
+
+# 如果你有使用 Gradle
+backend/build/
+backend/.gradle/
+
+# Java Class 檔與封裝檔 (通常由 target 處理，但以防萬一)
+*.class
+*.jar
+*.war
+*.ear
+
+# 忽略封裝後的 JAR 檔，但保留 Maven Wrapper (mvnw) 以便他人執行
+!mvnw
+!mvnw.cmd
