@@ -1,24 +1,31 @@
 import Image from "next/image";
 import Link from "next/link";
 
+// 定義課程資料結構，新增按鈕與促銷文字欄位
 const COURSES = [
   {
     id: 1,
     title: "軟體設計模式精通之旅",
     author: "水球潘",
     description: "用一趟旅程的時間，成為硬核的 Coding 實戰高手。",
-    image: "/course-pattern.jpg",
+    image: "/images/course_0.png", // 使用上傳的圖片
     tags: ["設計模式", "架構設計"],
-    highlight: true
+    highlight: true,
+    promoText: "看完課程介紹，立刻折價 3,000 元",
+    buttonText: "立刻體驗",
+    buttonStyle: "outline" // outline: 外框樣式
   },
   {
     id: 2,
     title: "AI x BDD：規格驅動全自動開發術",
     author: "水球潘",
     description: "AI Top 1% 工程師必修課，掌握規格驅動的全自動化開發。",
-    image: "/course-ai.jpg",
+    image: "/images/course_4.png", // 使用上傳的圖片
     tags: ["AI", "BDD", "Cucumber"],
-    highlight: false
+    highlight: false,
+    promoText: null,
+    buttonText: "立刻購買",
+    buttonStyle: "solid" // solid: 實心樣式
   }
 ];
 
@@ -88,33 +95,63 @@ export default function Home() {
             </p>
         </div>
 
-        {/* 課程列表 */}
+        {/* 課程列表 (完全依據 image_034746.jpg 修改) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {COURSES.map((course) => (
-            <div key={course.id} className="group bg-[#20222e] rounded-2xl overflow-hidden border border-white/5 hover:border-[#fbbf24]/50 transition cursor-pointer flex flex-col h-full">
-                <div className="h-48 bg-gradient-to-br from-gray-700 to-gray-900 relative flex items-center justify-center overflow-hidden">
-                    <div className="text-center transform group-hover:scale-105 transition duration-500">
-                        <div className="text-5xl mb-3 drop-shadow-lg">{course.tags[0] === "AI" ? "🤖" : "🧩"}</div>
-                        <div className="font-bold text-xl text-white/90 px-4">{course.title}</div>
-                    </div>
-                    <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition"></div>
+            <div key={course.id} className={`group bg-[#20222e] rounded-xl overflow-hidden border ${course.highlight ? 'border-[#fbbf24]/50 shadow-[0_0_15px_rgba(251,191,36,0.1)]' : 'border-white/10'} hover:border-[#fbbf24]/80 transition cursor-pointer flex flex-col h-full`}>
+                {/* 1. 圖片區塊：單純顯示封面圖，移除疊加文字 */}
+                <div className="relative w-full aspect-[16/9] bg-black">
+                     {/* 使用 unoptimized 避免 Docker 環境下的圖片處理問題 */}
+                    <Image 
+                        src={course.image} 
+                        alt={course.title} 
+                        fill 
+                        className="object-cover"
+                        unoptimized
+                    />
                 </div>
+
+                {/* 2. 內容區塊 */}
                 <div className="p-6 flex-1 flex flex-col">
-                <h3 className="text-xl font-bold text-white mb-2 group-hover:text-[#fbbf24] transition line-clamp-2">{course.title}</h3>
-                <div className="text-[#fbbf24] text-sm font-medium mb-4 flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center text-xs">潘</span>
-                    {course.author}
-                </div>
-                <p className="text-gray-400 text-sm leading-relaxed flex-1 mb-6">
-                    {course.description}
-                </p>
-                <div className="flex gap-2 flex-wrap">
-                    {course.tags.map(tag => (
-                    <span key={tag} className="px-3 py-1 bg-white/5 rounded-full text-xs text-gray-400 border border-white/5">
-                        #{tag}
-                    </span>
-                    ))}
-                </div>
+                    {/* 標題 */}
+                    <h3 className="text-xl font-bold text-white mb-3 group-hover:text-[#fbbf24] transition">{course.title}</h3>
+                    
+                    {/* 講師：樣式修改為 「潘 水球潘」 */}
+                    <div className="flex items-center gap-2 mb-4">
+                        <span className="bg-[#fbbf24] text-black text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">潘</span>
+                        <span className="text-[#fbbf24] text-sm font-bold">{course.author}</span>
+                    </div>
+
+                    {/* 描述 */}
+                    <p className="text-gray-400 text-sm leading-relaxed mb-6">
+                        {course.description}
+                    </p>
+
+                    {/* 標籤 */}
+                    <div className="flex gap-2 flex-wrap mb-8">
+                        {course.tags.map(tag => (
+                        <span key={tag} className="px-3 py-1.5 bg-[#2a2d3e] rounded-md text-xs text-gray-400 border border-white/5 hover:text-white hover:border-white/20 transition">
+                            #{tag}
+                        </span>
+                        ))}
+                    </div>
+
+                    {/* 底部按鈕與促銷文字區塊 (將其推到底部) */}
+                    <div className="mt-auto space-y-4">
+                        {course.promoText && (
+                            <div className="text-[#fbbf24] text-sm text-center font-medium">
+                                {course.promoText}
+                            </div>
+                        )}
+                        
+                        <button className={`w-full py-3 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2
+                            ${course.buttonStyle === 'solid' 
+                                ? 'bg-[#fbbf24] text-black hover:bg-yellow-300 shadow-lg shadow-yellow-500/20' 
+                                : 'bg-transparent text-[#fbbf24] border border-[#fbbf24] hover:bg-[#fbbf24]/10'
+                            }`}>
+                            {course.buttonText}
+                        </button>
+                    </div>
                 </div>
             </div>
             ))}
@@ -148,7 +185,7 @@ export default function Home() {
          ))}
       </div>
 
-      {/* 新增：水球潘個人介紹區塊 */}
+      {/* 水球潘個人介紹區塊 */}
       <section className="bg-[#181a25] border border-white/5 rounded-2xl p-8 md:p-12 flex flex-col md:flex-row items-center gap-8 md:gap-12">
         {/* 左側：頭像 (使用 Image 元件，請確保圖片存在於 public/images/avatar_pan.webp) */}
         <div className="flex-shrink-0 relative w-40 h-40 md:w-48 md:h-48 rounded-full overflow-hidden border-4 border-[#fbbf24]/20 shadow-2xl shadow-[#fbbf24]/10">
@@ -157,6 +194,7 @@ export default function Home() {
               alt="水球潘"
               fill
               className="object-cover"
+              unoptimized // <--- 關鍵修改：這會跳過 Next.js 的圖片最佳化，直接顯示圖片
             />
         </div>
 

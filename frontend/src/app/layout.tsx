@@ -93,12 +93,25 @@ export default function RootLayout({
         {/* Sidebar: 只要不是 Auth Page 都顯示 */}
         {!isAuthPage && (
           <aside className="w-64 bg-[#181a25] flex-shrink-0 flex flex-col border-r border-white/5 fixed h-full left-0 top-0 z-10">
-            <div className="p-6 flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex-shrink-0"></div>
-              <div>
-                <h1 className="font-bold text-white text-sm leading-tight">水球軟體學院</h1>
-                <p className="text-xs text-gray-400 tracking-wider">WATERBALLSA.TW</p>
-              </div>
+            <div className="p-6 flex items-center gap-3 border-b border-white/5">
+               {/* 藍色漸層球體圖示 */}
+               <div className="relative w-8 h-8 rounded-full flex-shrink-0 overflow-hidden">
+                 {/* [修正] 改用標準 img 標籤，解決 'Failed to construct Image' 錯誤 */}
+                 <img 
+                   src="/images/logo.png" 
+                   alt="Logo" 
+                   className="w-full h-full object-cover"
+                 />
+               </div>
+               {/* CSS 樣式文字 */}
+               <div>
+                 <h1 className="font-bold text-sky-300 text-lg leading-none mb-1 tracking-wide" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+                   水球軟體學院
+                 </h1>
+                 <p className="text-[11px] font-bold text-sky-300 tracking-[0.05em] leading-none font-mono uppercase">
+                   WATERBALLSA.TW
+                 </p>
+               </div>
             </div>
 
             <nav className="flex-1 px-4 space-y-8 overflow-y-auto py-4">
