@@ -151,7 +151,7 @@ export default function ProfilePage() {
                                     </button>
                                 )}
 
-                                {(order.status === 'PAID' || order.status === 'PENDING') && (
+                                {(order.status != 'PAID') && (
                                     <button 
                                         onClick={() => handleCancelOrder(order.id)}
                                         className="text-red-400 text-xs hover:underline"

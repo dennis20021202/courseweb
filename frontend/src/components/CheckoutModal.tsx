@@ -3,9 +3,11 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 
+// 確保 Unit 定義與新資料結構一致
 interface Unit {
     id: string;
     title: string;
+    videoId?: string; // 新增 videoId
 }
 
 interface Chapter {
@@ -15,7 +17,6 @@ interface Chapter {
     units: Unit[];
 }
 
-// 匯出介面以便其他頁面共用 (若不匯出，請確保其他頁面定義相容的介面)
 export interface Course {
     id: number;
     title: string;
@@ -30,29 +31,23 @@ export interface Course {
 interface CheckoutModalProps {
     course: Course;
     onClose: () => void;
-    existingOrderId?: number | null; // 新增：支援傳入既有訂單 ID
-    onPaymentSuccess?: () => void; // 新增：付款成功的回呼
+    existingOrderId?: number | null;
+    onPaymentSuccess?: () => void;
 }
 
 export default function CheckoutModal({ course, onClose, existingOrderId, onPaymentSuccess }: CheckoutModalProps) {
-    // 如果有 existingOrderId，直接從步驟 2 開始
     const [step, setStep] = useState(existingOrderId ? 2 : 1); 
     const [mounted, setMounted] = useState(false);
     const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set());
     const [agreementContent, setAgreementContent] = useState("");
     const [isAgreementExpanded, setIsAgreementExpanded] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    
-    // 訂單 ID (如果有傳入 existingOrderId 則使用之)
     const [orderId, setOrderId] = useState<number | null>(existingOrderId || null);
-    
-    // --- 表單狀態 ---
     const [paymentMethod, setPaymentMethod] = useState<"ATM" | "CREDIT" | "INSTALLMENT" | null>(null);
     const [isInvoiceExpanded, setIsInvoiceExpanded] = useState(false);
     const [invoiceType, setInvoiceType] = useState<"GUI" | "MOBILE" | "CITIZEN" | "DONATION">("GUI");
     const [invoiceCarrier, setInvoiceCarrier] = useState("");
 
-    // 解析課綱資料
     let syllabus: Chapter[] = [];
     try {
         if (course.syllabusJson) {
@@ -65,18 +60,10 @@ export default function CheckoutModal({ course, onClose, existingOrderId, onPaym
     useEffect(() => {
         setMounted(true);
         document.body.style.overflow = "hidden";
-
         fetch("/data/agreement.json")
-            .then(res => {
-                if (!res.ok) throw new Error("Network response was not ok");
-                return res.json();
-            })
+            .then(res => res.ok ? res.json() : { content: "無法載入" })
             .then(data => setAgreementContent(data.content))
-            .catch(err => {
-                console.warn("無法讀取契約 JSON:", err);
-                setAgreementContent("無法載入契約內容，請確認 /data/agreement.json 是否存在於 public 資料夾。");
-            });
-
+            .catch(err => console.warn(err));
         return () => { document.body.style.overflow = "unset"; };
     }, []);
 
@@ -89,7 +76,6 @@ export default function CheckoutModal({ course, onClose, existingOrderId, onPaym
         });
     };
 
-    // 第一階段：建立待付款訂單
     const handleCreateOrder = async () => {
         setIsLoading(true);
         const token = sessionStorage.getItem("token"); 
@@ -108,15 +94,13 @@ export default function CheckoutModal({ course, onClose, existingOrderId, onPaym
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${token}`
                 },
-                body: JSON.stringify({ 
-                    courseId: course.id
-                })
+                body: JSON.stringify({ courseId: course.id })
             });
 
             if (res.ok) {
                 const data = await res.json();
-                setOrderId(data.id); // 保存訂單 ID
-                setStep(2); // 前往付款頁面
+                setOrderId(data.id);
+                setStep(2);
             } else if (res.status === 409) {
                 alert("您已購買此課程，請直接去上課！");
                 window.location.href = "/profile";
@@ -131,11 +115,9 @@ export default function CheckoutModal({ course, onClose, existingOrderId, onPaym
         }
     };
 
-    // 第二階段：確認付款
     const handlePayOrder = async () => {
         if (!orderId) return;
         setIsLoading(true);
-        
         const token = sessionStorage.getItem("token"); 
 
         if (!paymentMethod) {
@@ -146,7 +128,6 @@ export default function CheckoutModal({ course, onClose, existingOrderId, onPaym
 
         try {
             const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-            // 使用 PUT 更新訂單狀態
             const res = await fetch(`${API_URL}/api/orders/${orderId}/pay`, {
                 method: "PUT",
                 headers: {
@@ -161,11 +142,8 @@ export default function CheckoutModal({ course, onClose, existingOrderId, onPaym
             });
 
             if (res.ok) {
-                setStep(3); // 顯示成功頁面
-                // 重要：只通知父元件刷新資料，不要關閉 Modal
-                if (onPaymentSuccess) {
-                    onPaymentSuccess();
-                }
+                setStep(3); 
+                if (onPaymentSuccess) onPaymentSuccess();
             } else {
                 alert("付款失敗，請稍後再試");
             }
@@ -184,7 +162,6 @@ export default function CheckoutModal({ course, onClose, existingOrderId, onPaym
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
 
             <div className="relative w-full max-w-4xl bg-[#12141c] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] border border-white/10 animate-in fade-in zoom-in duration-200">
-                
                 <button onClick={onClose} className="absolute top-4 right-4 z-20 p-2 bg-black/20 hover:bg-black/40 rounded-full text-white/70 hover:text-white transition">
                     ✕
                 </button>
@@ -260,7 +237,6 @@ export default function CheckoutModal({ course, onClose, existingOrderId, onPaym
                                     ) : (
                                         <div className="text-gray-500 text-center py-4 border border-white/10 rounded-lg">暫無課綱資料</div>
                                     )}
-                                </div>
                                     <div className="space-y-4">
                                         <h2 className="text-lg font-bold text-white flex items-center gap-2">
                                             <span className="w-2 h-2 rounded-full bg-white"></span>
@@ -275,19 +251,19 @@ export default function CheckoutModal({ course, onClose, existingOrderId, onPaym
                                             ))}
                                         </div>
                                     </div>
+                                </div>
                             </div>
                         )}
 
                         {step === 2 && (
                             <div className="p-6 md:p-10 space-y-8">
-                                
                                 <div className="space-y-4">
                                     <h3 className="text-white font-bold text-lg">付款方式</h3>
                                     <div className="grid gap-3">
                                         {[
-                                            { id: "ATM", label: "ATM 匯款"},
-                                            { id: "CREDIT", label: "信用卡 (一次付清)"},
-                                            { id: "INSTALLMENT", label: "銀角零卡分期"}
+                                            { id: "ATM", label: "ATM 匯款", icon: "🏧"},
+                                            { id: "CREDIT", label: "信用卡 (一次付清)", icon: "💳"},
+                                            { id: "INSTALLMENT", label: "銀角零卡分期", icon: "🦄"}
                                         ].map((method) => (
                                             <label 
                                                 key={method.id}
@@ -345,7 +321,6 @@ export default function CheckoutModal({ course, onClose, existingOrderId, onPaym
                                                      ))}
                                                  </div>
                                              </div>
-                                             
                                              <div>
                                                  <p className="text-gray-400 text-sm mb-2">
                                                      {invoiceType === "GUI" && "統一編號"}
@@ -365,29 +340,11 @@ export default function CheckoutModal({ course, onClose, existingOrderId, onPaym
                                      )}
                                 </div>
 
-                                <div className="space-y-2">
-                                    <button 
-                                        onClick={() => setIsAgreementExpanded(!isAgreementExpanded)}
-                                        className="flex items-center gap-2 text-[#3b82f6] hover:text-blue-400 transition font-medium"
-                                    >
-                                        <span>{isAgreementExpanded ? "▲" : "▼"}</span>
-                                        {course.title} 服務契約
-                                    </button>
-                                    {isAgreementExpanded && (
-                                        <div className="text-gray-400 text-xs leading-relaxed p-4 bg-[#181a25] rounded-lg border border-white/10 whitespace-pre-line h-64 overflow-y-auto custom-scrollbar">
-                                            {agreementContent}
-                                        </div>
-                                    )}
-                                </div>
-
                                 <button 
                                     onClick={handlePayOrder}
                                     disabled={!paymentMethod || isLoading}
                                     className={`w-full font-bold py-4 rounded-lg transition shadow-lg text-lg
-                                        ${paymentMethod 
-                                            ? "bg-[#3b82f6] hover:bg-blue-600 text-white shadow-blue-500/20" 
-                                            : "bg-gray-700 text-gray-400 cursor-not-allowed"
-                                        }`}
+                                        ${paymentMethod ? "bg-[#3b82f6] hover:bg-blue-600 text-white" : "bg-gray-700 text-gray-400 cursor-not-allowed"}`}
                                 >
                                     {isLoading ? "處理中..." : "進行支付"}
                                 </button>
@@ -396,31 +353,16 @@ export default function CheckoutModal({ course, onClose, existingOrderId, onPaym
 
                         {step === 3 && (
                              <div className="p-10 md:p-16 flex flex-col items-center text-center space-y-8">
-                                <div className="w-24 h-24 rounded-full bg-green-500/20 flex items-center justify-center mb-4">
-                                    <span className="text-4xl text-green-500">✓</span>
-                                </div>
-                                
-                                <div>
-                                    <h2 className="text-3xl font-bold text-white mb-4">付款成功！</h2>
-                                    <p className="text-gray-400 text-lg max-w-md mx-auto">
-                                        感謝您的購買，發票將寄送至您的信箱。
-                                    </p>
-                                </div>
-
-                                <button 
-                                    onClick={() => window.location.href = "/profile"}
-                                    className="bg-[#fbbf24] text-black px-10 py-3 rounded-lg text-lg font-bold hover:bg-yellow-300 transition shadow-lg shadow-yellow-500/20"
-                                >
-                                    查看我的訂單
-                                </button>
+                                <h2 className="text-3xl font-bold text-white mb-4">付款成功！</h2>
+                                <button onClick={() => window.location.href = "/profile"} className="bg-[#fbbf24] text-black px-10 py-3 rounded-lg text-lg font-bold">查看我的訂單</button>
                              </div>
                         )}
                     </div>
                 </div>
-
+                
                 {step === 1 && (
                     <div className="border-t border-white/10 bg-[#181a25] p-4 md:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 z-10">
-                        <div className="flex items-baseline gap-3">
+                         <div className="flex items-baseline gap-3">
                             <span className="text-white font-bold">售價</span>
                             <span className="text-gray-500 line-through text-sm">NT${course.originalPrice.toLocaleString()}</span>
                             <span className="text-[#22c55e] font-bold text-2xl">NT${course.price.toLocaleString()}</span>

@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import CheckoutModal from "@/components/CheckoutModal"; 
 
+// 更新 Interface: 移除 buttonText, buttonStyle
 interface Course {
     id: number;
     title: string;
@@ -16,10 +17,17 @@ interface Course {
     longDescription?: string;
     highlight: boolean;
     promoText: string | null;
-    buttonText: string;
-    buttonStyle: "solid" | "outline";
     syllabusJson?: string; 
 }
+
+// 定義前端顯示邏輯
+const getCourseDisplayProps = (courseId: number) => {
+    // 這裡可以根據 ID 或價格或其他屬性來決定按鈕
+    if (courseId === 1) {
+        return { buttonText: "立刻體驗", buttonStyle: "outline" as const };
+    }
+    return { buttonText: "立刻購買", buttonStyle: "solid" as const };
+};
 
 const FEATURES = [
     {
@@ -115,16 +123,15 @@ export default function Home() {
       fetchCoursesAndStatus();
   }, []);
 
-  const handleCourseAction = (course: Course) => {
-    if (course.buttonStyle === 'solid') {
+  const handleCourseAction = (course: Course, style: "solid" | "outline") => {
+    if (style === 'solid') {
         if (purchasedCourseIds.has(course.id)) {
-            window.location.href = "/profile"; 
+            // 修改：已購買則導向課程學習頁面
+            window.location.href = `/courses/${course.id}/learn`; 
         } else if (pendingOrderMap.has(course.id)) {
-            // 有待付款訂單，開啟 Modal 並傳入既有訂單 ID
             setExistingOrderId(pendingOrderMap.get(course.id) || null);
             setSelectedCourse(course);
         } else {
-            // 尚未購買且無待付款，開啟 Modal (全新訂單)
             setExistingOrderId(null);
             setSelectedCourse(course);
         }
@@ -144,11 +151,7 @@ export default function Home() {
                 setSelectedCourse(null);
                 setExistingOrderId(null);
             }}
-            onPaymentSuccess={() => {
-                // 如果是從首頁購買的，付款成功後通常不需要特別做什麼，
-                // 讓使用者自己決定要不要去 Profile 頁面。
-                // 或者也可以在這裡刷新首頁狀態。
-            }}
+            onPaymentSuccess={() => {}}
           />
       )}
 
@@ -170,10 +173,10 @@ export default function Home() {
                 {courses.map((course) => {
                     const isPurchased = purchasedCourseIds.has(course.id);
                     const isPending = pendingOrderMap.has(course.id);
+                    const { buttonText, buttonStyle } = getCourseDisplayProps(course.id);
                     
                     return (
                         <div key={course.id} className={`group bg-[#20222e] rounded-xl overflow-hidden border ${course.highlight ? 'border-[#fbbf24]/50 shadow-[0_0_15px_rgba(251,191,36,0.1)]' : 'border-white/10'} hover:border-[#fbbf24]/80 transition cursor-pointer flex flex-col h-full`}>
-                            {/* 圖片 - 改回使用標準 img 標籤以相容預覽環境 */}
                             <div className="relative w-full aspect-[16/9] bg-black">
                                 <img 
                                     src={course.image} 
@@ -183,7 +186,6 @@ export default function Home() {
                                 />
                             </div>
 
-                            {/* 內容 */}
                             <div className="p-6 flex-1 flex flex-col">
                                 <h3 className="text-xl font-bold text-white mb-3 group-hover:text-[#fbbf24] transition">{course.title}</h3>
                                 
@@ -196,7 +198,6 @@ export default function Home() {
                                     {course.description}
                                 </p>
 
-                                {/* Tags 處理 */}
                                 <div className="flex gap-2 flex-wrap mb-8">
                                     {course.tags && course.tags.split(',').map(tag => (
                                     <span key={tag} className="px-3 py-1.5 bg-[#2a2d3e] rounded-md text-xs text-gray-400 border border-white/5 hover:text-white hover:border-white/20 transition">
@@ -213,9 +214,9 @@ export default function Home() {
                                     )}
                                     
                                     <button 
-                                        onClick={() => handleCourseAction(course)}
+                                        onClick={() => handleCourseAction(course, buttonStyle)}
                                         className={`w-full py-3 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2
-                                            ${course.buttonStyle === 'solid' 
+                                            ${buttonStyle === 'solid' 
                                                 ? (isPurchased 
                                                     ? 'bg-green-600 text-white hover:bg-green-500' 
                                                     : isPending
@@ -223,9 +224,9 @@ export default function Home() {
                                                         : 'bg-[#fbbf24] text-black hover:bg-yellow-300 shadow-lg shadow-yellow-500/20')
                                                 : 'bg-transparent text-[#fbbf24] border border-[#fbbf24] hover:bg-[#fbbf24]/10'
                                             }`}>
-                                        {course.buttonStyle === 'solid' 
-                                            ? (isPurchased ? "去上課" : isPending ? "繼續付款" : course.buttonText) 
-                                            : course.buttonText}
+                                        {buttonStyle === 'solid' 
+                                            ? (isPurchased ? "去上課" : isPending ? "繼續付款" : buttonText) 
+                                            : buttonText}
                                     </button>
                                 </div>
                             </div>
@@ -236,7 +237,7 @@ export default function Home() {
         )}
       </div>
 
-      {/* Section 2: Features (保留原本設計) */}
+      {/* Features */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
          {FEATURES.map((feature, idx) => (
             <div key={idx} className="bg-[#181a25] border border-white/5 rounded-2xl p-8 flex flex-col hover:bg-[#20222e] transition duration-300">
@@ -256,9 +257,8 @@ export default function Home() {
          ))}
       </div>
       
-      {/* 水球潘個人介紹區塊 */}
+      {/* 水球潘個人介紹 */}
       <section className="bg-[#181a25] border border-white/5 rounded-2xl p-8 md:p-12 flex flex-col md:flex-row items-center gap-8 md:gap-12">
-        {/* 左側：頭像 */}
         <div className="flex-shrink-0 relative w-40 h-40 md:w-48 md:h-48 rounded-full overflow-hidden border-4 border-[#fbbf24]/20 shadow-2xl shadow-[#fbbf24]/10">
             <img
               src="/images/avatar.webp"
@@ -266,8 +266,6 @@ export default function Home() {
               className="w-full h-full object-cover absolute inset-0"
             />
         </div>
-
-        {/* 右側：文字內容 */}
         <div className="flex-1 space-y-6 text-center md:text-left">
             <div>
                 <h2 className="text-3xl font-bold text-white mb-2">水球潘</h2>
@@ -275,7 +273,6 @@ export default function Home() {
                     七年程式教育者 & 軟體設計學講師，致力於將複雜的軟體設計概念轉化為易於理解和實踐的教學內容。
                 </p>
             </div>
-
             <ul className="space-y-3">
                 {[
                     "主修 Christopher Alexander 設計模式、軟體架構、分散式系統架構、Clean Architecture、領域驅動設計等領域",
@@ -297,7 +294,6 @@ export default function Home() {
         </div>
       </section>
       
-      {/* Footer */}
       <footer className="border-t border-white/10 pt-8 pb-12 text-center text-gray-500 text-sm">
          <p>&copy; 2025 水球軟體學院. All rights reserved.</p>
       </footer>
