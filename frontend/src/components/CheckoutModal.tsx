@@ -15,7 +15,8 @@ interface Chapter {
     units: Unit[];
 }
 
-interface Course {
+// 匯出介面以便其他頁面共用 (若不匯出，請確保其他頁面定義相容的介面)
+export interface Course {
     id: number;
     title: string;
     price: number;
@@ -29,15 +30,21 @@ interface Course {
 interface CheckoutModalProps {
     course: Course;
     onClose: () => void;
+    existingOrderId?: number | null; // 新增：支援傳入既有訂單 ID
+    onPaymentSuccess?: () => void; // 新增：付款成功的回呼
 }
 
-export default function CheckoutModal({ course, onClose }: CheckoutModalProps) {
-    const [step, setStep] = useState(1); 
+export default function CheckoutModal({ course, onClose, existingOrderId, onPaymentSuccess }: CheckoutModalProps) {
+    // 如果有 existingOrderId，直接從步驟 2 開始
+    const [step, setStep] = useState(existingOrderId ? 2 : 1); 
     const [mounted, setMounted] = useState(false);
     const [expandedChapters, setExpandedChapters] = useState<Set<string>>(new Set());
     const [agreementContent, setAgreementContent] = useState("");
     const [isAgreementExpanded, setIsAgreementExpanded] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    
+    // 訂單 ID (如果有傳入 existingOrderId 則使用之)
+    const [orderId, setOrderId] = useState<number | null>(existingOrderId || null);
     
     // --- 表單狀態 ---
     const [paymentMethod, setPaymentMethod] = useState<"ATM" | "CREDIT" | "INSTALLMENT" | null>(null);
@@ -82,27 +89,15 @@ export default function CheckoutModal({ course, onClose }: CheckoutModalProps) {
         });
     };
 
-    const handlePayment = async () => {
+    // 第一階段：建立待付款訂單
+    const handleCreateOrder = async () => {
         setIsLoading(true);
-        
-        // [關鍵修正]：從 sessionStorage 讀取 Token
         const token = sessionStorage.getItem("token"); 
 
         if (!token) {
             alert("請先登入！");
             window.location.href = "/login";
             return;
-        }
-
-        if (!paymentMethod) {
-             alert("請選擇付款方式");
-             setIsLoading(false);
-             return;
-        }
-
-        // 簡單驗證：如果不是捐贈碼，且有展開發票區塊，則需要輸入內容
-        if (isInvoiceExpanded && !invoiceCarrier && invoiceType !== "DONATION") {
-            // 這裡只是簡單示意，實際邏輯可依需求調整
         }
 
         try {
@@ -114,7 +109,51 @@ export default function CheckoutModal({ course, onClose }: CheckoutModalProps) {
                     "Authorization": `Bearer ${token}`
                 },
                 body: JSON.stringify({ 
-                    courseId: course.id,
+                    courseId: course.id
+                })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                setOrderId(data.id); // 保存訂單 ID
+                setStep(2); // 前往付款頁面
+            } else if (res.status === 409) {
+                alert("您已購買此課程，請直接去上課！");
+                window.location.href = "/profile";
+            } else {
+                alert("建立訂單失敗，請稍後再試");
+            }
+        } catch (error) {
+            console.error(error);
+            alert("連線錯誤");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // 第二階段：確認付款
+    const handlePayOrder = async () => {
+        if (!orderId) return;
+        setIsLoading(true);
+        
+        const token = sessionStorage.getItem("token"); 
+
+        if (!paymentMethod) {
+             alert("請選擇付款方式");
+             setIsLoading(false);
+             return;
+        }
+
+        try {
+            const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+            // 使用 PUT 更新訂單狀態
+            const res = await fetch(`${API_URL}/api/orders/${orderId}/pay`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
+                body: JSON.stringify({ 
                     paymentMethod,
                     invoiceType,
                     invoiceCarrier
@@ -122,13 +161,17 @@ export default function CheckoutModal({ course, onClose }: CheckoutModalProps) {
             });
 
             if (res.ok) {
-                setStep(3); // 成功
+                setStep(3); // 顯示成功頁面
+                // 重要：只通知父元件刷新資料，不要關閉 Modal
+                if (onPaymentSuccess) {
+                    onPaymentSuccess();
+                }
             } else {
-                alert("購買失敗，請稍後再試");
+                alert("付款失敗，請稍後再試");
             }
         } catch (error) {
             console.error(error);
-            alert("連線錯誤，請確認後端是否正常運作");
+            alert("連線錯誤");
         } finally {
             setIsLoading(false);
         }
@@ -168,6 +211,11 @@ export default function CheckoutModal({ course, onClose }: CheckoutModalProps) {
                              <div className="space-y-4">
                                 <h1 className="text-2xl md:text-3xl font-bold text-white leading-tight">{course.title}</h1>
                                 <div className="text-white/90 text-sm md:text-base leading-relaxed whitespace-pre-line">{course.longDescription || course.description}</div>
+                            </div>
+                        ) : step === 2 ? (
+                            <div className="space-y-4">
+                                <h1 className="text-2xl md:text-3xl font-bold text-white leading-tight">確認付款</h1>
+                                <div className="text-white/90 text-sm">訂單編號: #{orderId} • {course.title}</div>
                             </div>
                         ) : (
                             <div className="h-2"></div> 
@@ -213,7 +261,6 @@ export default function CheckoutModal({ course, onClose }: CheckoutModalProps) {
                                         <div className="text-gray-500 text-center py-4 border border-white/10 rounded-lg">暫無課綱資料</div>
                                     )}
                                 </div>
-                                {/* 特色區塊 (原本設計圖的下方區塊) */}
                                     <div className="space-y-4">
                                         <h2 className="text-lg font-bold text-white flex items-center gap-2">
                                             <span className="w-2 h-2 rounded-full bg-white"></span>
@@ -238,9 +285,9 @@ export default function CheckoutModal({ course, onClose }: CheckoutModalProps) {
                                     <h3 className="text-white font-bold text-lg">付款方式</h3>
                                     <div className="grid gap-3">
                                         {[
-                                            { id: "ATM", label: "ATM 匯款", icon: "💳" },
-                                            { id: "CREDIT", label: "信用卡 (一次付清)", icon: "💳" },
-                                            { id: "INSTALLMENT", label: "銀角零卡分期", icon: "📱" }
+                                            { id: "ATM", label: "ATM 匯款"},
+                                            { id: "CREDIT", label: "信用卡 (一次付清)"},
+                                            { id: "INSTALLMENT", label: "銀角零卡分期"}
                                         ].map((method) => (
                                             <label 
                                                 key={method.id}
@@ -334,7 +381,7 @@ export default function CheckoutModal({ course, onClose }: CheckoutModalProps) {
                                 </div>
 
                                 <button 
-                                    onClick={handlePayment}
+                                    onClick={handlePayOrder}
                                     disabled={!paymentMethod || isLoading}
                                     className={`w-full font-bold py-4 rounded-lg transition shadow-lg text-lg
                                         ${paymentMethod 
@@ -378,12 +425,16 @@ export default function CheckoutModal({ course, onClose }: CheckoutModalProps) {
                             <span className="text-gray-500 line-through text-sm">NT${course.originalPrice.toLocaleString()}</span>
                             <span className="text-[#22c55e] font-bold text-2xl">NT${course.price.toLocaleString()}</span>
                         </div>
-                        <button 
-                            className="w-full sm:w-auto bg-[#3b82f6] hover:bg-blue-600 text-white font-bold py-2.5 px-8 rounded-lg transition shadow-lg shadow-blue-500/20"
-                            onClick={() => setStep(2)}
-                        >
-                            下一步：選取付款方式
-                        </button>
+                        <div className="flex flex-col w-full sm:w-auto items-center sm:items-end gap-1">
+                            <span className="text-xs text-gray-400">此處按下即建立訂單</span>
+                            <button 
+                                className="w-full sm:w-auto bg-[#3b82f6] hover:bg-blue-600 text-white font-bold py-2.5 px-8 rounded-lg transition shadow-lg shadow-blue-500/20"
+                                onClick={handleCreateOrder}
+                                disabled={isLoading}
+                            >
+                                {isLoading ? "處理中..." : "下一步：選取付款方式"}
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>

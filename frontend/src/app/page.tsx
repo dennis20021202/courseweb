@@ -1,10 +1,9 @@
 "use client"; 
-
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import CheckoutModal from "@/components/CheckoutModal"; 
 
-// 定義完整的課程介面 (包含所有新欄位)
 interface Course {
     id: number;
     title: string;
@@ -19,7 +18,7 @@ interface Course {
     promoText: string | null;
     buttonText: string;
     buttonStyle: "solid" | "outline";
-    syllabusJson?: string; // 接收後端的 JSON 字串
+    syllabusJson?: string; 
 }
 
 const FEATURES = [
@@ -64,36 +63,71 @@ const FEATURES = [
 
 export default function Home() {
   const [courses, setCourses] = useState<Course[]>([]);
+  const [purchasedCourseIds, setPurchasedCourseIds] = useState<Set<number>>(new Set());
+  const [pendingOrderMap, setPendingOrderMap] = useState<Map<number, number>>(new Map());
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [existingOrderId, setExistingOrderId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-      const fetchCourses = async () => {
+      const fetchCoursesAndStatus = async () => {
           try {
               const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-              const res = await fetch(`${API_URL}/api/courses`);
               
-              // 檢查回應是否為 JSON，避免 "Unexpected token <" 錯誤
-              const contentType = res.headers.get("content-type");
-              if (contentType && contentType.indexOf("application/json") !== -1) {
+              // 1. 取得課程列表
+              const res = await fetch(`${API_URL}/api/courses`);
+              if (res.ok) {
                   const data = await res.json();
                   setCourses(data);
-              } else {
-                  console.error("API 回傳了非 JSON 格式 (可能是 404 或 500 頁面)");
+              }
+
+              // 2. 如果已登入，檢查購買狀態
+              const token = sessionStorage.getItem("token");
+              if (token) {
+                  const orderRes = await fetch(`${API_URL}/api/orders/my`, {
+                       headers: { "Authorization": `Bearer ${token}` }
+                  });
+                  if (orderRes.ok) {
+                      const orders: any[] = await orderRes.json();
+                      
+                      const paidIds = new Set<number>();
+                      const pendingMap = new Map<number, number>();
+
+                      orders.forEach(o => {
+                          if (o.status === 'PAID') {
+                              paidIds.add(o.course.id);
+                          } else if (o.status === 'PENDING') {
+                              pendingMap.set(o.course.id, o.id);
+                          }
+                      });
+                      
+                      setPurchasedCourseIds(paidIds);
+                      setPendingOrderMap(pendingMap);
+                  }
               }
           } catch (err) {
-              console.error("無法獲取課程資料:", err);
+              console.error("載入失敗:", err);
           } finally {
               setLoading(false);
           }
       };
       
-      fetchCourses();
+      fetchCoursesAndStatus();
   }, []);
 
   const handleCourseAction = (course: Course) => {
     if (course.buttonStyle === 'solid') {
-        setSelectedCourse(course);
+        if (purchasedCourseIds.has(course.id)) {
+            window.location.href = "/profile"; 
+        } else if (pendingOrderMap.has(course.id)) {
+            // 有待付款訂單，開啟 Modal 並傳入既有訂單 ID
+            setExistingOrderId(pendingOrderMap.get(course.id) || null);
+            setSelectedCourse(course);
+        } else {
+            // 尚未購買且無待付款，開啟 Modal (全新訂單)
+            setExistingOrderId(null);
+            setSelectedCourse(course);
+        }
     } else {
         alert("體驗課程功能即將上線！");
     }
@@ -105,7 +139,16 @@ export default function Home() {
       {selectedCourse && (
           <CheckoutModal 
             course={selectedCourse} 
-            onClose={() => setSelectedCourse(null)} 
+            existingOrderId={existingOrderId}
+            onClose={() => {
+                setSelectedCourse(null);
+                setExistingOrderId(null);
+            }}
+            onPaymentSuccess={() => {
+                // 如果是從首頁購買的，付款成功後通常不需要特別做什麼，
+                // 讓使用者自己決定要不要去 Profile 頁面。
+                // 或者也可以在這裡刷新首頁狀態。
+            }}
           />
       )}
 
@@ -124,62 +167,71 @@ export default function Home() {
             <div className="text-center text-gray-500 py-20">資料庫載入中...</div>
         ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {courses.map((course) => (
-                <div key={course.id} className={`group bg-[#20222e] rounded-xl overflow-hidden border ${course.highlight ? 'border-[#fbbf24]/50 shadow-[0_0_15px_rgba(251,191,36,0.1)]' : 'border-white/10'} hover:border-[#fbbf24]/80 transition cursor-pointer flex flex-col h-full`}>
-                    {/* 圖片 */}
-                    <div className="relative w-full aspect-[16/9] bg-black">
-                        <Image 
-                            src={course.image} 
-                            alt={course.title} 
-                            fill 
-                            className="object-cover"
-                            unoptimized
-                            onError={(e) => e.currentTarget.src = '/images/course_0.png'} 
-                        />
-                    </div>
+                {courses.map((course) => {
+                    const isPurchased = purchasedCourseIds.has(course.id);
+                    const isPending = pendingOrderMap.has(course.id);
+                    
+                    return (
+                        <div key={course.id} className={`group bg-[#20222e] rounded-xl overflow-hidden border ${course.highlight ? 'border-[#fbbf24]/50 shadow-[0_0_15px_rgba(251,191,36,0.1)]' : 'border-white/10'} hover:border-[#fbbf24]/80 transition cursor-pointer flex flex-col h-full`}>
+                            {/* 圖片 - 改回使用標準 img 標籤以相容預覽環境 */}
+                            <div className="relative w-full aspect-[16/9] bg-black">
+                                <img 
+                                    src={course.image} 
+                                    alt={course.title} 
+                                    className="w-full h-full object-cover absolute inset-0"
+                                    onError={(e) => e.currentTarget.src = '/images/course_0.png'} 
+                                />
+                            </div>
 
-                    {/* 內容 */}
-                    <div className="p-6 flex-1 flex flex-col">
-                        <h3 className="text-xl font-bold text-white mb-3 group-hover:text-[#fbbf24] transition">{course.title}</h3>
-                        
-                        <div className="flex items-center gap-2 mb-4">
-                            <span className="bg-[#fbbf24] text-black text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">潘</span>
-                            <span className="text-[#fbbf24] text-sm font-bold">{course.author}</span>
-                        </div>
-
-                        <p className="text-gray-400 text-sm leading-relaxed mb-6 line-clamp-2">
-                            {course.description}
-                        </p>
-
-                        {/* Tags 處理 */}
-                        <div className="flex gap-2 flex-wrap mb-8">
-                            {course.tags && course.tags.split(',').map(tag => (
-                            <span key={tag} className="px-3 py-1.5 bg-[#2a2d3e] rounded-md text-xs text-gray-400 border border-white/5 hover:text-white hover:border-white/20 transition">
-                                #{tag}
-                            </span>
-                            ))}
-                        </div>
-
-                        <div className="mt-auto space-y-4">
-                            {course.promoText && (
-                                <div className="text-[#fbbf24] text-sm text-center font-medium">
-                                    {course.promoText}
+                            {/* 內容 */}
+                            <div className="p-6 flex-1 flex flex-col">
+                                <h3 className="text-xl font-bold text-white mb-3 group-hover:text-[#fbbf24] transition">{course.title}</h3>
+                                
+                                <div className="flex items-center gap-2 mb-4">
+                                    <span className="bg-[#fbbf24] text-black text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">潘</span>
+                                    <span className="text-[#fbbf24] text-sm font-bold">{course.author}</span>
                                 </div>
-                            )}
-                            
-                            <button 
-                                onClick={() => handleCourseAction(course)}
-                                className={`w-full py-3 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2
-                                    ${course.buttonStyle === 'solid' 
-                                        ? 'bg-[#fbbf24] text-black hover:bg-yellow-300 shadow-lg shadow-yellow-500/20' 
-                                        : 'bg-transparent text-[#fbbf24] border border-[#fbbf24] hover:bg-[#fbbf24]/10'
-                                    }`}>
-                                {course.buttonText}
-                            </button>
+
+                                <p className="text-gray-400 text-sm leading-relaxed mb-6 line-clamp-2">
+                                    {course.description}
+                                </p>
+
+                                {/* Tags 處理 */}
+                                <div className="flex gap-2 flex-wrap mb-8">
+                                    {course.tags && course.tags.split(',').map(tag => (
+                                    <span key={tag} className="px-3 py-1.5 bg-[#2a2d3e] rounded-md text-xs text-gray-400 border border-white/5 hover:text-white hover:border-white/20 transition">
+                                        #{tag}
+                                    </span>
+                                    ))}
+                                </div>
+
+                                <div className="mt-auto space-y-4">
+                                    {course.promoText && (
+                                        <div className="text-[#fbbf24] text-sm text-center font-medium">
+                                            {course.promoText}
+                                        </div>
+                                    )}
+                                    
+                                    <button 
+                                        onClick={() => handleCourseAction(course)}
+                                        className={`w-full py-3 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2
+                                            ${course.buttonStyle === 'solid' 
+                                                ? (isPurchased 
+                                                    ? 'bg-green-600 text-white hover:bg-green-500' 
+                                                    : isPending
+                                                        ? 'bg-yellow-500 text-black hover:bg-yellow-400'
+                                                        : 'bg-[#fbbf24] text-black hover:bg-yellow-300 shadow-lg shadow-yellow-500/20')
+                                                : 'bg-transparent text-[#fbbf24] border border-[#fbbf24] hover:bg-[#fbbf24]/10'
+                                            }`}>
+                                        {course.buttonStyle === 'solid' 
+                                            ? (isPurchased ? "去上課" : isPending ? "繼續付款" : course.buttonText) 
+                                            : course.buttonText}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
-                ))}
+                    );
+                })}
             </div>
         )}
       </div>
@@ -208,12 +260,10 @@ export default function Home() {
       <section className="bg-[#181a25] border border-white/5 rounded-2xl p-8 md:p-12 flex flex-col md:flex-row items-center gap-8 md:gap-12">
         {/* 左側：頭像 */}
         <div className="flex-shrink-0 relative w-40 h-40 md:w-48 md:h-48 rounded-full overflow-hidden border-4 border-[#fbbf24]/20 shadow-2xl shadow-[#fbbf24]/10">
-            <Image
+            <img
               src="/images/avatar.webp"
               alt="水球潘"
-              fill
-              className="object-cover"
-              unoptimized 
+              className="w-full h-full object-cover absolute inset-0"
             />
         </div>
 

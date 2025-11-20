@@ -143,6 +143,19 @@ export default function RootLayout({
                 ))}
               </div>
 
+              {/* 底部選單 (Mock) */}
+              <div className="space-y-1 border-t border-white/10 pt-6">
+                   <Link href="#" className="flex items-center gap-3 px-4 py-2 text-gray-400 hover:text-white transition-colors text-sm">
+                     所有單元
+                   </Link>
+                   <Link href="#" className="flex items-center gap-3 px-4 py-2 text-gray-400 hover:text-white transition-colors text-sm">
+                     挑戰地圖
+                   </Link>
+                   <Link href="#" className="flex items-center gap-3 px-4 py-2 text-gray-400 hover:text-white transition-colors text-sm">
+                     SOP 寶典
+                   </Link>
+              </div>
+
               {user && (
                 <div className="pt-4 border-t border-white/10 mt-4 pb-4">
                   <button 
