@@ -16,7 +16,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// 定義選單資料
 const NAV_ITEMS = [
   { name: "首頁", href: "/", icon: (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
@@ -26,20 +25,20 @@ const NAV_ITEMS = [
   ), protected: false },
   { name: "個人檔案", href: "/profile", icon: (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-  ), protected: true }, // 需要登入才能看
+  ), protected: true },
 ];
 
 const SECONDARY_NAV_ITEMS = [
     { name: "排行榜", href: "/leaderboard", icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
     ), protected: false },
     { name: "獎勵任務", href: "/missions", icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" /></svg>
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" /></svg>
     ), protected: true },
     { name: "挑戰歷程", href: "/history", icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
     ), protected: true },
-  ];
+];
 
 export default function RootLayout({
   children,
@@ -47,19 +46,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const pathname = usePathname();
-  // 這裡定義 user 的結構
   const [user, setUser] = useState<{name: string; role: string; avatar: string} | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    const storedUser = localStorage.getItem("user");
+    // [關鍵修正]：改為讀取 sessionStorage
+    const storedUser = sessionStorage.getItem("user");
     if (storedUser) {
       setUser(JSON.parse(storedUser));
     }
   }, []);
 
   const handleLogout = () => {
+    sessionStorage.removeItem("token");
+    sessionStorage.removeItem("user");
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     setUser(null);
@@ -68,15 +69,13 @@ export default function RootLayout({
 
   const isAuthPage = pathname === "/login" || pathname === "/register";
 
-  // 判斷 Sidebar 連結點擊行為
   const getLinkProps = (item: { href: string; protected: boolean }) => {
       if (item.protected && !user) {
-          return { href: "/login" }; // 未登入點擊 protected 連結導向登入
+          return { href: "/login" }; 
       }
       return { href: item.href };
   };
   
-  // 為了避免 Hydration Mismatch，未掛載前不渲染內容，但保留 html/body
   if (!mounted) {
       return (
         <html lang="zh-TW">
@@ -90,20 +89,16 @@ export default function RootLayout({
     <html lang="zh-TW">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex min-h-screen bg-[#12141c]`}>
         
-        {/* Sidebar: 只要不是 Auth Page 都顯示 */}
         {!isAuthPage && (
           <aside className="w-64 bg-[#181a25] flex-shrink-0 flex flex-col border-r border-white/5 fixed h-full left-0 top-0 z-10">
             <div className="p-6 flex items-center gap-3 border-b border-white/5">
-               {/* 藍色漸層球體圖示 */}
                <div className="relative w-8 h-8 rounded-full flex-shrink-0 overflow-hidden">
-                 {/* [修正] 改用標準 img 標籤，解決 'Failed to construct Image' 錯誤 */}
                  <img 
                    src="/images/logo.png" 
                    alt="Logo" 
                    className="w-full h-full object-cover"
                  />
                </div>
-               {/* CSS 樣式文字 */}
                <div>
                  <h1 className="font-bold text-sky-300 text-lg leading-none mb-1 tracking-wide" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
                    水球軟體學院
@@ -115,7 +110,6 @@ export default function RootLayout({
             </div>
 
             <nav className="flex-1 px-4 space-y-8 overflow-y-auto py-4">
-              {/* 第一組選單 */}
               <div className="space-y-1">
                   {NAV_ITEMS.map((item) => (
                     <Link
@@ -134,7 +128,6 @@ export default function RootLayout({
                   ))}
               </div>
 
-              {/* 第二組選單 */}
               <div className="space-y-1 border-t border-white/10 pt-6">
                 {SECONDARY_NAV_ITEMS.map((item) => (
                     <Link
@@ -148,20 +141,6 @@ export default function RootLayout({
                     {item.protected && !user && <span className="ml-auto text-xs">🔒</span>}
                     </Link>
                 ))}
-              </div>
-              
-              {/* 底部選單 (Mock) */}
-              <div className="space-y-1 border-t border-white/10 pt-6">
-                   <div className="text-xs text-gray-500 px-4 mb-2">資源</div>
-                   <Link href="#" className="flex items-center gap-3 px-4 py-2 text-gray-400 hover:text-white transition-colors text-sm">
-                     所有單元
-                   </Link>
-                   <Link href="#" className="flex items-center gap-3 px-4 py-2 text-gray-400 hover:text-white transition-colors text-sm">
-                     挑戰地圖
-                   </Link>
-                   <Link href="#" className="flex items-center gap-3 px-4 py-2 text-gray-400 hover:text-white transition-colors text-sm">
-                     SOP 寶典
-                   </Link>
               </div>
 
               {user && (
@@ -180,10 +159,8 @@ export default function RootLayout({
         )}
 
         <main className={`flex-1 p-8 ${!isAuthPage ? "ml-64" : "w-full mx-auto max-w-7xl"}`}>
-          
           {!isAuthPage && (
             <header className="flex justify-between items-center mb-8">
-              {/* 左側：Header 標題 (課程選擇) */}
               <div className="flex items-center gap-4">
                 <div className="relative">
                   <button className="flex items-center gap-2 bg-[#20222e] hover:bg-white/10 transition px-4 py-2.5 rounded-lg text-sm font-medium border border-white/10 text-gray-200">
@@ -193,7 +170,6 @@ export default function RootLayout({
                 </div>
               </div>
 
-              {/* 右側：操作區 */}
               <div className="flex items-center gap-4">
                 {user ? (
                   <>
@@ -218,7 +194,6 @@ export default function RootLayout({
                   </>
                 ) : (
                   <>
-                     {/* 未登入：獨立 登入 與 註冊 按鈕 */}
                      <Link href="/login">
                         <button className="bg-[#fbbf24] text-black px-6 py-2 rounded-lg text-sm font-bold hover:bg-yellow-300 transition shadow-lg shadow-yellow-500/20">
                           登入

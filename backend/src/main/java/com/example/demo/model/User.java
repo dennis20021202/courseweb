@@ -23,8 +23,9 @@ public class User {
 
     private String role = "STUDENT";
 
-    // 修改這裡：使用 @Column(columnDefinition = "TEXT") 來支援長字串
-    // 或者使用 @Lob (但在某些 DB 可能需要額外設定，TEXT 對 PostgreSQL 來說最簡單)
     @Column(columnDefinition = "TEXT")
     private String avatar;
+    
+    // 新增 Token 欄位，用於簡易驗證 (取代 Session/JWT 複雜設定)
+    private String token;
 }

@@ -32,9 +32,12 @@ public class AuthController {
         user.setName(request.getName());
         user.setAvatar(request.getAvatar() != null ? request.getAvatar() : "/images/default-avatar.png");
         
+        // 註冊後自動登入，生成 Token
+        String token = UUID.randomUUID().toString();
+        user.setToken(token);
+        
         userRepository.save(user);
 
-        String token = UUID.randomUUID().toString();
         return ResponseEntity.ok(new AuthResponse(token, user.getName(), user.getRole(), user.getAvatar()));
     }
 
@@ -45,11 +48,28 @@ public class AuthController {
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             if (user.getPassword().equals(request.getPassword())) {
+                // 每次登入更新 Token
                 String token = UUID.randomUUID().toString();
+                user.setToken(token);
+                userRepository.save(user);
+                
                 return ResponseEntity.ok(new AuthResponse(token, user.getName(), user.getRole(), user.getAvatar()));
             }
         }
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid email or password");
+    }
+    
+    // 新增：透過 Token 獲取使用者資訊 (給前端 Profile 頁面用)
+    @GetMapping("/me")
+    public ResponseEntity<?> getMe(@RequestHeader("Authorization") String bearerToken) {
+        String token = bearerToken.replace("Bearer ", "");
+        Optional<User> userOpt = userRepository.findByToken(token);
+        
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            return ResponseEntity.ok(new AuthResponse(user.getToken(), user.getName(), user.getRole(), user.getAvatar()));
+        }
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
     }
 }

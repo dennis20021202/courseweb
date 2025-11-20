@@ -1,9 +1,26 @@
-"use client"; // 轉為 Client Component 以使用 State
+"use client"; 
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
-import { COURSES, Course } from "@/data/courses";
-import CheckoutModal from "@/components/CheckoutModal"; // 引入 Modal
+import CheckoutModal from "@/components/CheckoutModal"; 
+
+// 定義完整的課程介面 (包含所有新欄位)
+interface Course {
+    id: number;
+    title: string;
+    author: string;
+    description: string;
+    image: string;
+    tags: string;
+    price: number;
+    originalPrice: number;
+    longDescription?: string;
+    highlight: boolean;
+    promoText: string | null;
+    buttonText: string;
+    buttonStyle: "solid" | "outline";
+    syllabusJson?: string; // 接收後端的 JSON 字串
+}
 
 const FEATURES = [
     {
@@ -46,16 +63,38 @@ const FEATURES = [
 ];
 
 export default function Home() {
-  // State 來控制當前選中的課程 Modal
+  const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // 處理按鈕點擊
+  useEffect(() => {
+      const fetchCourses = async () => {
+          try {
+              const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+              const res = await fetch(`${API_URL}/api/courses`);
+              
+              // 檢查回應是否為 JSON，避免 "Unexpected token <" 錯誤
+              const contentType = res.headers.get("content-type");
+              if (contentType && contentType.indexOf("application/json") !== -1) {
+                  const data = await res.json();
+                  setCourses(data);
+              } else {
+                  console.error("API 回傳了非 JSON 格式 (可能是 404 或 500 頁面)");
+              }
+          } catch (err) {
+              console.error("無法獲取課程資料:", err);
+          } finally {
+              setLoading(false);
+          }
+      };
+      
+      fetchCourses();
+  }, []);
+
   const handleCourseAction = (course: Course) => {
     if (course.buttonStyle === 'solid') {
-        // 只有樣式為 solid (立刻購買) 時，才開啟購買 Modal
         setSelectedCourse(course);
     } else {
-        // 其他按鈕 (例如 "立刻體驗") 可以在此定義行為，目前暫時跳提示
         alert("體驗課程功能即將上線！");
     }
   };
@@ -63,7 +102,6 @@ export default function Home() {
   return (
     <div className="space-y-16"> 
       
-      {/* 彈出式購買視窗 Modal */}
       {selectedCourse && (
           <CheckoutModal 
             course={selectedCourse} 
@@ -71,20 +109,8 @@ export default function Home() {
           />
       )}
 
-      {/* Section 1: Banner & Welcome */}
+      {/* Section 1: Banner */}
       <div className="space-y-8">
-        {/* 優惠 Banner */}
-        <div className="bg-gradient-to-r from-gray-800 to-gray-900 border border-white/10 rounded-xl p-4 flex items-center justify-between shadow-lg">
-            <div className="text-gray-200 text-sm flex items-center gap-2">
-            <span className="text-gray-400 border-b border-gray-400 text-xs pb-0.5">最新消息</span>
-            <span>將軟體設計精通之旅體驗課程的全部影片看完就可以獲得 <span className="text-[#fbbf24] font-bold border-b border-[#fbbf24] pb-0.5">3000 元課程折價券！</span></span>
-            </div>
-            <button className="bg-[#fbbf24] text-black px-6 py-1.5 rounded-lg text-sm font-bold hover:bg-yellow-300 transition">
-            前往
-            </button>
-        </div>
-
-        {/* 歡迎標題 */}
         <div className="space-y-4 py-4">
             <h2 className="text-4xl font-bold text-white tracking-tight">歡迎來到水球軟體學院</h2>
             <p className="text-gray-400 max-w-4xl leading-relaxed text-lg">
@@ -94,71 +120,71 @@ export default function Home() {
         </div>
 
         {/* 課程列表 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {COURSES.map((course) => (
-            <div key={course.id} className={`group bg-[#20222e] rounded-xl overflow-hidden border ${course.highlight ? 'border-[#fbbf24]/50 shadow-[0_0_15px_rgba(251,191,36,0.1)]' : 'border-white/10'} hover:border-[#fbbf24]/80 transition cursor-pointer flex flex-col h-full`}>
-                {/* 1. 圖片區塊 */}
-                <div className="relative w-full aspect-[16/9] bg-black">
-                    <Image 
-                        src={course.image} 
-                        alt={course.title} 
-                        fill 
-                        className="object-cover"
-                        unoptimized
-                    />
-                </div>
-
-                {/* 2. 內容區塊 */}
-                <div className="p-6 flex-1 flex flex-col">
-                    {/* 標題 */}
-                    <h3 className="text-xl font-bold text-white mb-3 group-hover:text-[#fbbf24] transition">{course.title}</h3>
-                    
-                    {/* 講師 */}
-                    <div className="flex items-center gap-2 mb-4">
-                        <span className="bg-[#fbbf24] text-black text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">潘</span>
-                        <span className="text-[#fbbf24] text-sm font-bold">{course.author}</span>
+        {loading ? (
+            <div className="text-center text-gray-500 py-20">資料庫載入中...</div>
+        ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {courses.map((course) => (
+                <div key={course.id} className={`group bg-[#20222e] rounded-xl overflow-hidden border ${course.highlight ? 'border-[#fbbf24]/50 shadow-[0_0_15px_rgba(251,191,36,0.1)]' : 'border-white/10'} hover:border-[#fbbf24]/80 transition cursor-pointer flex flex-col h-full`}>
+                    {/* 圖片 */}
+                    <div className="relative w-full aspect-[16/9] bg-black">
+                        <Image 
+                            src={course.image} 
+                            alt={course.title} 
+                            fill 
+                            className="object-cover"
+                            unoptimized
+                            onError={(e) => e.currentTarget.src = '/images/course_0.png'} 
+                        />
                     </div>
 
-                    {/* 描述 */}
-                    <p className="text-gray-400 text-sm leading-relaxed mb-6 line-clamp-2">
-                        {course.description}
-                    </p>
-
-                    {/* 標籤 */}
-                    <div className="flex gap-2 flex-wrap mb-8">
-                        {course.tags.map(tag => (
-                        <span key={tag} className="px-3 py-1.5 bg-[#2a2d3e] rounded-md text-xs text-gray-400 border border-white/5 hover:text-white hover:border-white/20 transition">
-                            #{tag}
-                        </span>
-                        ))}
-                    </div>
-
-                    {/* 底部按鈕與促銷文字區塊 */}
-                    <div className="mt-auto space-y-4">
-                        {course.promoText && (
-                            <div className="text-[#fbbf24] text-sm text-center font-medium">
-                                {course.promoText}
-                            </div>
-                        )}
+                    {/* 內容 */}
+                    <div className="p-6 flex-1 flex flex-col">
+                        <h3 className="text-xl font-bold text-white mb-3 group-hover:text-[#fbbf24] transition">{course.title}</h3>
                         
-                        {/* 修改為 Button 並綁定 click 事件 */}
-                        <button 
-                            onClick={() => handleCourseAction(course)}
-                            className={`w-full py-3 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2
-                                ${course.buttonStyle === 'solid' 
-                                    ? 'bg-[#fbbf24] text-black hover:bg-yellow-300 shadow-lg shadow-yellow-500/20' 
-                                    : 'bg-transparent text-[#fbbf24] border border-[#fbbf24] hover:bg-[#fbbf24]/10'
-                                }`}>
-                            {course.buttonText}
-                        </button>
+                        <div className="flex items-center gap-2 mb-4">
+                            <span className="bg-[#fbbf24] text-black text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">潘</span>
+                            <span className="text-[#fbbf24] text-sm font-bold">{course.author}</span>
+                        </div>
+
+                        <p className="text-gray-400 text-sm leading-relaxed mb-6 line-clamp-2">
+                            {course.description}
+                        </p>
+
+                        {/* Tags 處理 */}
+                        <div className="flex gap-2 flex-wrap mb-8">
+                            {course.tags && course.tags.split(',').map(tag => (
+                            <span key={tag} className="px-3 py-1.5 bg-[#2a2d3e] rounded-md text-xs text-gray-400 border border-white/5 hover:text-white hover:border-white/20 transition">
+                                #{tag}
+                            </span>
+                            ))}
+                        </div>
+
+                        <div className="mt-auto space-y-4">
+                            {course.promoText && (
+                                <div className="text-[#fbbf24] text-sm text-center font-medium">
+                                    {course.promoText}
+                                </div>
+                            )}
+                            
+                            <button 
+                                onClick={() => handleCourseAction(course)}
+                                className={`w-full py-3 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2
+                                    ${course.buttonStyle === 'solid' 
+                                        ? 'bg-[#fbbf24] text-black hover:bg-yellow-300 shadow-lg shadow-yellow-500/20' 
+                                        : 'bg-transparent text-[#fbbf24] border border-[#fbbf24] hover:bg-[#fbbf24]/10'
+                                    }`}>
+                                {course.buttonText}
+                            </button>
+                        </div>
                     </div>
                 </div>
+                ))}
             </div>
-            ))}
-        </div>
+        )}
       </div>
 
-      {/* Section 2: Features Grid */}
+      {/* Section 2: Features (保留原本設計) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
          {FEATURES.map((feature, idx) => (
             <div key={idx} className="bg-[#181a25] border border-white/5 rounded-2xl p-8 flex flex-col hover:bg-[#20222e] transition duration-300">
@@ -170,21 +196,14 @@ export default function Home() {
                     {feature.description}
                 </p>
                 <div className="flex gap-4">
-                    {feature.extraAction && (
-                        <button className="bg-[#fbbf24] text-black px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-yellow-300 transition flex items-center gap-2">
-                            {feature.extraAction}
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-                        </button>
-                    )}
-                    <button className={`${feature.extraAction ? 'border border-[#fbbf24] text-[#fbbf24] hover:bg-[#fbbf24]/10' : 'bg-[#fbbf24] text-black hover:bg-yellow-300'} px-6 py-2.5 rounded-lg text-sm font-bold transition flex items-center gap-2`}>
+                    <button className="bg-[#fbbf24] text-black px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-yellow-300 transition flex items-center gap-2">
                         {feature.action}
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                     </button>
                 </div>
             </div>
          ))}
       </div>
-
+      
       {/* 水球潘個人介紹區塊 */}
       <section className="bg-[#181a25] border border-white/5 rounded-2xl p-8 md:p-12 flex flex-col md:flex-row items-center gap-8 md:gap-12">
         {/* 左側：頭像 */}

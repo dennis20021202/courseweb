@@ -4,25 +4,28 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+// 預設灰人頭 SVG (Base64)
+const DEFAULT_AVATAR = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iIzlDQTNBRiIgY2xhc3M9InYtNiBoLTYiPjxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgZD0iTTE4LjY4NSAxOS4wOTdBOS43MjMgOS43MjMgMCAwMDIxLjc1IDEyYzAtNS4zODUtNC4zNjUtOS43NS05Ljc1LTkuNzVTMi4yNSA2LjYxNSAyLjI1IDEyYTkuNzIzIDkuNzIzIDAgMDAzLjA2NSA3LjA5N0E5LjcxNiA5LjcxNiAwIDAwMTIgMjEuNzVhOS43MTYgOS43MTYgMCAwMDYuNjg1LTIuNjUzem0tMTIuNTQtMS4yODVBNy40ODYgNy40ODYgMCAwMTEyIDE1YTcuNDg2IDcuNDg2IDAgMDE1Ljg1NSAyLjgxMkE4LjIyNCA4LjIyNCAwIDAxMTIgMjAuMjVhOC4yMjQgOC4yMjQgMCAwMS01Ljg1NS0yLjQzOHpNMTUuNzUgOWEzLjc1IDMuNzUgMCAxMS03LjUgMCAzLjc1IDMuNzUgMCAwMTcuNSAweiIgY2xpcC1ydWxlPSJldmVub2RkIiAvPjwvc3ZnPg==";
+
 export default function RegisterPage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [avatar, setAvatar] = useState("/images/default-avatar.png"); // 預設頭貼
+  
+  // 預設使用灰人頭
+  const [avatar, setAvatar] = useState(DEFAULT_AVATAR);
+  
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // 處理圖片上傳，轉為 Base64
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // 限制檔案大小 (例如 2MB)
       if (file.size > 2 * 1024 * 1024) {
         setError("圖片大小請勿超過 2MB");
         return;
       }
-
       const reader = new FileReader();
       reader.onloadend = () => {
         if (typeof reader.result === "string") {
@@ -49,12 +52,18 @@ export default function RegisterPage() {
 
       if (res.ok) {
         const data = await res.json();
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify({ 
+        
+        // [關鍵修正]：改用 sessionStorage，與 CheckoutModal 一致
+        sessionStorage.setItem("token", data.token);
+        sessionStorage.setItem("user", JSON.stringify({ 
           name: data.name, 
           role: data.role, 
           avatar: data.avatar 
         }));
+        
+        // 清除舊的 localStorage 以免混淆
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
         
         window.location.href = "/"; 
       } else {
@@ -77,11 +86,14 @@ export default function RegisterPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* 頭貼上傳預覽 */}
           <div className="flex flex-col items-center mb-6">
-             <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-[#fbbf24] bg-gray-700 mb-4 group">
-                <img src={avatar} alt="Avatar Preview" className="w-full h-full object-cover" onError={(e) => e.currentTarget.src = 'https://via.placeholder.com/150'}/>
-                {/* 遮罩提示 */}
+             {/* 頭像顯示區塊 */}
+             <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-[#fbbf24] bg-gray-800 mb-4 group">
+                <img 
+                  src={avatar} 
+                  alt="Avatar Preview" 
+                  className="w-full h-full object-cover" 
+                />
                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition text-xs text-white pointer-events-none">
                   更換
                 </div>
