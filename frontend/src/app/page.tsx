@@ -1,33 +1,9 @@
-import Image from "next/image";
-import Link from "next/link";
+"use client"; // 轉為 Client Component 以使用 State
 
-// 定義課程資料結構，新增按鈕與促銷文字欄位
-const COURSES = [
-  {
-    id: 1,
-    title: "軟體設計模式精通之旅",
-    author: "水球潘",
-    description: "用一趟旅程的時間，成為硬核的 Coding 實戰高手。",
-    image: "/images/course_0.png", // 使用上傳的圖片
-    tags: ["設計模式", "架構設計"],
-    highlight: true,
-    promoText: "看完課程介紹，立刻折價 3,000 元",
-    buttonText: "立刻體驗",
-    buttonStyle: "outline" // outline: 外框樣式
-  },
-  {
-    id: 2,
-    title: "AI x BDD：規格驅動全自動開發術",
-    author: "水球潘",
-    description: "AI Top 1% 工程師必修課，掌握規格驅動的全自動化開發。",
-    image: "/images/course_4.png", // 使用上傳的圖片
-    tags: ["AI", "BDD", "Cucumber"],
-    highlight: false,
-    promoText: null,
-    buttonText: "立刻購買",
-    buttonStyle: "solid" // solid: 實心樣式
-  }
-];
+import { useState } from "react";
+import Image from "next/image";
+import { COURSES, Course } from "@/data/courses";
+import CheckoutModal from "@/components/CheckoutModal"; // 引入 Modal
 
 const FEATURES = [
     {
@@ -55,7 +31,7 @@ const FEATURES = [
         ),
         description: "加入水球成立的工程師 Discord 社群，與水球以及其他工程師線上交流，培養學習習慣及樂趣。",
         action: "加入 Discord",
-        href: "https://discord.gg/waterballsa", // 假連結
+        href: "https://discord.gg/waterballsa", 
         extraAction: "加入 Facebook 社團"
     },
     {
@@ -70,9 +46,31 @@ const FEATURES = [
 ];
 
 export default function Home() {
+  // State 來控制當前選中的課程 Modal
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+
+  // 處理按鈕點擊
+  const handleCourseAction = (course: Course) => {
+    if (course.buttonStyle === 'solid') {
+        // 只有樣式為 solid (立刻購買) 時，才開啟購買 Modal
+        setSelectedCourse(course);
+    } else {
+        // 其他按鈕 (例如 "立刻體驗") 可以在此定義行為，目前暫時跳提示
+        alert("體驗課程功能即將上線！");
+    }
+  };
+
   return (
     <div className="space-y-16"> 
       
+      {/* 彈出式購買視窗 Modal */}
+      {selectedCourse && (
+          <CheckoutModal 
+            course={selectedCourse} 
+            onClose={() => setSelectedCourse(null)} 
+          />
+      )}
+
       {/* Section 1: Banner & Welcome */}
       <div className="space-y-8">
         {/* 優惠 Banner */}
@@ -95,13 +93,12 @@ export default function Home() {
             </p>
         </div>
 
-        {/* 課程列表 (完全依據 image_034746.jpg 修改) */}
+        {/* 課程列表 */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {COURSES.map((course) => (
             <div key={course.id} className={`group bg-[#20222e] rounded-xl overflow-hidden border ${course.highlight ? 'border-[#fbbf24]/50 shadow-[0_0_15px_rgba(251,191,36,0.1)]' : 'border-white/10'} hover:border-[#fbbf24]/80 transition cursor-pointer flex flex-col h-full`}>
-                {/* 1. 圖片區塊：單純顯示封面圖，移除疊加文字 */}
+                {/* 1. 圖片區塊 */}
                 <div className="relative w-full aspect-[16/9] bg-black">
-                     {/* 使用 unoptimized 避免 Docker 環境下的圖片處理問題 */}
                     <Image 
                         src={course.image} 
                         alt={course.title} 
@@ -116,14 +113,14 @@ export default function Home() {
                     {/* 標題 */}
                     <h3 className="text-xl font-bold text-white mb-3 group-hover:text-[#fbbf24] transition">{course.title}</h3>
                     
-                    {/* 講師：樣式修改為 「潘 水球潘」 */}
+                    {/* 講師 */}
                     <div className="flex items-center gap-2 mb-4">
                         <span className="bg-[#fbbf24] text-black text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">潘</span>
                         <span className="text-[#fbbf24] text-sm font-bold">{course.author}</span>
                     </div>
 
                     {/* 描述 */}
-                    <p className="text-gray-400 text-sm leading-relaxed mb-6">
+                    <p className="text-gray-400 text-sm leading-relaxed mb-6 line-clamp-2">
                         {course.description}
                     </p>
 
@@ -136,7 +133,7 @@ export default function Home() {
                         ))}
                     </div>
 
-                    {/* 底部按鈕與促銷文字區塊 (將其推到底部) */}
+                    {/* 底部按鈕與促銷文字區塊 */}
                     <div className="mt-auto space-y-4">
                         {course.promoText && (
                             <div className="text-[#fbbf24] text-sm text-center font-medium">
@@ -144,11 +141,14 @@ export default function Home() {
                             </div>
                         )}
                         
-                        <button className={`w-full py-3 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2
-                            ${course.buttonStyle === 'solid' 
-                                ? 'bg-[#fbbf24] text-black hover:bg-yellow-300 shadow-lg shadow-yellow-500/20' 
-                                : 'bg-transparent text-[#fbbf24] border border-[#fbbf24] hover:bg-[#fbbf24]/10'
-                            }`}>
+                        {/* 修改為 Button 並綁定 click 事件 */}
+                        <button 
+                            onClick={() => handleCourseAction(course)}
+                            className={`w-full py-3 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2
+                                ${course.buttonStyle === 'solid' 
+                                    ? 'bg-[#fbbf24] text-black hover:bg-yellow-300 shadow-lg shadow-yellow-500/20' 
+                                    : 'bg-transparent text-[#fbbf24] border border-[#fbbf24] hover:bg-[#fbbf24]/10'
+                                }`}>
                             {course.buttonText}
                         </button>
                     </div>
@@ -187,14 +187,14 @@ export default function Home() {
 
       {/* 水球潘個人介紹區塊 */}
       <section className="bg-[#181a25] border border-white/5 rounded-2xl p-8 md:p-12 flex flex-col md:flex-row items-center gap-8 md:gap-12">
-        {/* 左側：頭像 (使用 Image 元件，請確保圖片存在於 public/images/avatar_pan.webp) */}
+        {/* 左側：頭像 */}
         <div className="flex-shrink-0 relative w-40 h-40 md:w-48 md:h-48 rounded-full overflow-hidden border-4 border-[#fbbf24]/20 shadow-2xl shadow-[#fbbf24]/10">
             <Image
-              src="/images/avatar_pan.webp"
+              src="/images/avatar.webp"
               alt="水球潘"
               fill
               className="object-cover"
-              unoptimized // <--- 關鍵修改：這會跳過 Next.js 的圖片最佳化，直接顯示圖片
+              unoptimized 
             />
         </div>
 
