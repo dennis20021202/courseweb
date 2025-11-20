@@ -1,10 +1,9 @@
 "use client"; 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import Link from "next/link"; // 修正 import
 import CheckoutModal from "@/components/CheckoutModal"; 
 
-// 更新 Interface: 移除 buttonText, buttonStyle
 interface Course {
     id: number;
     title: string;
@@ -18,16 +17,9 @@ interface Course {
     highlight: boolean;
     promoText: string | null;
     syllabusJson?: string; 
+    recommended: boolean;
+    hasTrial: boolean;
 }
-
-// 定義前端顯示邏輯
-const getCourseDisplayProps = (courseId: number) => {
-    // 這裡可以根據 ID 或價格或其他屬性來決定按鈕
-    if (courseId === 1) {
-        return { buttonText: "立刻體驗", buttonStyle: "outline" as const };
-    }
-    return { buttonText: "立刻購買", buttonStyle: "solid" as const };
-};
 
 const FEATURES = [
     {
@@ -82,11 +74,11 @@ export default function Home() {
           try {
               const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
               
-              // 1. 取得課程列表
+              // 1. 取得所有課程，並在前端過濾 "recommended"
               const res = await fetch(`${API_URL}/api/courses`);
               if (res.ok) {
                   const data = await res.json();
-                  setCourses(data);
+                  setCourses(data.filter((c: Course) => c.recommended));
               }
 
               // 2. 如果已登入，檢查購買狀態
@@ -97,16 +89,12 @@ export default function Home() {
                   });
                   if (orderRes.ok) {
                       const orders: any[] = await orderRes.json();
-                      
                       const paidIds = new Set<number>();
                       const pendingMap = new Map<number, number>();
 
                       orders.forEach(o => {
-                          if (o.status === 'PAID') {
-                              paidIds.add(o.course.id);
-                          } else if (o.status === 'PENDING') {
-                              pendingMap.set(o.course.id, o.id);
-                          }
+                          if (o.status === 'PAID') paidIds.add(o.course.id);
+                          else if (o.status === 'PENDING') pendingMap.set(o.course.id, o.id);
                       });
                       
                       setPurchasedCourseIds(paidIds);
@@ -123,21 +111,20 @@ export default function Home() {
       fetchCoursesAndStatus();
   }, []);
 
-  const handleCourseAction = (course: Course, style: "solid" | "outline") => {
-    if (style === 'solid') {
-        if (purchasedCourseIds.has(course.id)) {
-            // 修改：已購買則導向課程學習頁面
-            window.location.href = `/courses/${course.id}/learn`; 
-        } else if (pendingOrderMap.has(course.id)) {
-            setExistingOrderId(pendingOrderMap.get(course.id) || null);
-            setSelectedCourse(course);
-        } else {
-            setExistingOrderId(null);
-            setSelectedCourse(course);
-        }
+  const handlePurchase = (course: Course) => {
+    if (purchasedCourseIds.has(course.id)) {
+        window.location.href = `/courses/${course.id}/learn`;
+    } else if (pendingOrderMap.has(course.id)) {
+        setExistingOrderId(pendingOrderMap.get(course.id) || null);
+        setSelectedCourse(course);
     } else {
-        alert("體驗課程功能即將上線！");
+        setExistingOrderId(null);
+        setSelectedCourse(course);
     }
+  };
+
+  const handleTrial = (courseId: number) => {
+      window.location.href = `/courses/${courseId}/learn`;
   };
 
   return (
@@ -147,15 +134,11 @@ export default function Home() {
           <CheckoutModal 
             course={selectedCourse} 
             existingOrderId={existingOrderId}
-            onClose={() => {
-                setSelectedCourse(null);
-                setExistingOrderId(null);
-            }}
-            onPaymentSuccess={() => {}}
+            onClose={() => { setSelectedCourse(null); setExistingOrderId(null); }}
           />
       )}
 
-      {/* Section 1: Banner */}
+      {/* Banner */}
       <div className="space-y-8">
         <div className="space-y-4 py-4">
             <h2 className="text-4xl font-bold text-white tracking-tight">歡迎來到水球軟體學院</h2>
@@ -165,76 +148,100 @@ export default function Home() {
             </p>
         </div>
 
-        {/* 課程列表 */}
-        {loading ? (
-            <div className="text-center text-gray-500 py-20">資料庫載入中...</div>
-        ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {courses.map((course) => {
-                    const isPurchased = purchasedCourseIds.has(course.id);
-                    const isPending = pendingOrderMap.has(course.id);
-                    const { buttonText, buttonStyle } = getCourseDisplayProps(course.id);
-                    
-                    return (
-                        <div key={course.id} className={`group bg-[#20222e] rounded-xl overflow-hidden border ${course.highlight ? 'border-[#fbbf24]/50 shadow-[0_0_15px_rgba(251,191,36,0.1)]' : 'border-white/10'} hover:border-[#fbbf24]/80 transition cursor-pointer flex flex-col h-full`}>
-                            <div className="relative w-full aspect-[16/9] bg-black">
-                                <img 
-                                    src={course.image} 
-                                    alt={course.title} 
-                                    className="w-full h-full object-cover absolute inset-0"
-                                    onError={(e) => e.currentTarget.src = '/images/course_0.png'} 
-                                />
-                            </div>
-
-                            <div className="p-6 flex-1 flex flex-col">
-                                <h3 className="text-xl font-bold text-white mb-3 group-hover:text-[#fbbf24] transition">{course.title}</h3>
+        <div className="mb-6">
+             <h3 className="text-2xl font-bold text-[#fbbf24] border-b border-white/10 pb-4 mb-6 flex items-center gap-2">
+                🔥 推薦課程
+                <Link href="/courses" className="text-xs text-gray-500 hover:text-white ml-auto font-normal transition">查看所有課程 →</Link>
+             </h3>
+             {loading ? (
+                <div className="text-center text-gray-500 py-20">資料庫載入中...</div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {courses.map((course) => {
+                        const isPurchased = purchasedCourseIds.has(course.id);
+                        const isPending = pendingOrderMap.has(course.id);
+                        const showTrial = course.hasTrial && !isPurchased;
+                        
+                        return (
+                            <div key={course.id} className={`group relative bg-[#20222e] rounded-xl overflow-hidden border ${course.highlight ? 'border-[#fbbf24]/50 shadow-[0_0_15px_rgba(251,191,36,0.1)]' : 'border-white/10'} hover:border-[#fbbf24]/80 transition cursor-pointer flex flex-col h-full`}>
                                 
-                                <div className="flex items-center gap-2 mb-4">
-                                    <span className="bg-[#fbbf24] text-black text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">潘</span>
-                                    <span className="text-[#fbbf24] text-sm font-bold">{course.author}</span>
-                                </div>
-
-                                <p className="text-gray-400 text-sm leading-relaxed mb-6 line-clamp-2">
-                                    {course.description}
-                                </p>
-
-                                <div className="flex gap-2 flex-wrap mb-8">
-                                    {course.tags && course.tags.split(',').map(tag => (
-                                    <span key={tag} className="px-3 py-1.5 bg-[#2a2d3e] rounded-md text-xs text-gray-400 border border-white/5 hover:text-white hover:border-white/20 transition">
-                                        #{tag}
-                                    </span>
-                                    ))}
-                                </div>
-
-                                <div className="mt-auto space-y-4">
-                                    {course.promoText && (
-                                        <div className="text-[#fbbf24] text-sm text-center font-medium">
-                                            {course.promoText}
+                                {/* 試聽懸浮標籤 */}
+                                {showTrial && (
+                                    <div className="absolute top-4 right-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+                                        <div className="bg-[#fbbf24] text-black text-xs font-bold px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1">
+                                            <span>🎁</span>
+                                            <span>免費試聽第一章</span>
                                         </div>
-                                    )}
+                                    </div>
+                                )}
+
+                                <div className="relative w-full aspect-[16/9] bg-black">
+                                    <img 
+                                        src={course.image} 
+                                        alt={course.title} 
+                                        className="w-full h-full object-cover absolute inset-0"
+                                        onError={(e) => e.currentTarget.src = '/images/course_0.png'} 
+                                    />
+                                </div>
+
+                                <div className="p-6 flex-1 flex flex-col">
+                                    <h3 className="text-xl font-bold text-white mb-3 group-hover:text-[#fbbf24] transition">{course.title}</h3>
                                     
-                                    <button 
-                                        onClick={() => handleCourseAction(course, buttonStyle)}
-                                        className={`w-full py-3 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2
-                                            ${buttonStyle === 'solid' 
-                                                ? (isPurchased 
-                                                    ? 'bg-green-600 text-white hover:bg-green-500' 
-                                                    : isPending
-                                                        ? 'bg-yellow-500 text-black hover:bg-yellow-400'
-                                                        : 'bg-[#fbbf24] text-black hover:bg-yellow-300 shadow-lg shadow-yellow-500/20')
-                                                : 'bg-transparent text-[#fbbf24] border border-[#fbbf24] hover:bg-[#fbbf24]/10'
-                                            }`}>
-                                        {buttonStyle === 'solid' 
-                                            ? (isPurchased ? "去上課" : isPending ? "繼續付款" : buttonText) 
-                                            : buttonText}
-                                    </button>
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <span className="bg-[#fbbf24] text-black text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">潘</span>
+                                        <span className="text-[#fbbf24] text-sm font-bold">{course.author}</span>
+                                    </div>
+
+                                    <p className="text-gray-400 text-sm leading-relaxed mb-6 line-clamp-2">
+                                        {course.description}
+                                    </p>
+
+                                    <div className="flex gap-2 flex-wrap mb-8">
+                                        {course.tags && course.tags.split(',').map(tag => (
+                                        <span key={tag} className="px-3 py-1.5 bg-[#2a2d3e] rounded-md text-xs text-gray-400 border border-white/5 hover:text-white hover:border-white/20 transition">
+                                            #{tag}
+                                        </span>
+                                        ))}
+                                    </div>
+
+                                    <div className="mt-auto space-y-4">
+                                        {course.promoText && (
+                                            <div className="text-[#fbbf24] text-sm text-center font-medium">
+                                                {course.promoText}
+                                            </div>
+                                        )}
+                                        
+                                        <div className="flex gap-3">
+                                            {showTrial && (
+                                                <button 
+                                                    onClick={() => handleTrial(course.id)}
+                                                    className="flex-1 py-3 rounded-lg text-sm font-bold border border-[#fbbf24] text-[#fbbf24] hover:bg-[#fbbf24]/10 transition"
+                                                >
+                                                    立刻體驗
+                                                </button>
+                                            )}
+                                            
+                                            <button 
+                                                onClick={() => handlePurchase(course)}
+                                                className={`flex-1 py-3 rounded-lg text-sm font-bold transition shadow-lg
+                                                    ${isPurchased 
+                                                        ? 'bg-green-600 text-white hover:bg-green-500' 
+                                                        : isPending
+                                                            ? 'bg-yellow-500 text-black hover:bg-yellow-400'
+                                                            : 'bg-[#fbbf24] text-black hover:bg-yellow-300 shadow-yellow-500/20'
+                                                    }`}
+                                            >
+                                                {isPurchased ? "去上課" : isPending ? "繼續付款" : "立刻購買"}
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    );
-                })}
-            </div>
-        )}
+                        );
+                    })}
+                </div>
+            )}
+        </div>
       </div>
 
       {/* Features */}
@@ -249,9 +256,15 @@ export default function Home() {
                     {feature.description}
                 </p>
                 <div className="flex gap-4">
-                    <button className="bg-[#fbbf24] text-black px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-yellow-300 transition flex items-center gap-2">
-                        {feature.action}
-                    </button>
+                    {feature.href.startsWith("http") ? (
+                        <a href={feature.href} target="_blank" rel="noopener noreferrer" className="bg-[#fbbf24] text-black px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-yellow-300 transition flex items-center gap-2">
+                             {feature.action}
+                        </a>
+                    ) : (
+                        <Link href={feature.href} className="bg-[#fbbf24] text-black px-6 py-2.5 rounded-lg text-sm font-bold hover:bg-yellow-300 transition flex items-center gap-2">
+                            {feature.action}
+                        </Link>
+                    )}
                 </div>
             </div>
          ))}

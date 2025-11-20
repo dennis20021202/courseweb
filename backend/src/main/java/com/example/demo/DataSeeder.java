@@ -29,13 +29,16 @@ public class DataSeeder implements CommandLineRunner {
             c1.setHighlight(true);
             c1.setPromoText("看完課程介紹，立刻折價 3,000 元");
 
-            // 修正：unit.id 加上前綴 (c1-u1)，確保全域唯一，避免進度衝突
+            // 設定：推薦顯示在首頁，且開放試聽
+            c1.setRecommended(true);
+            c1.setHasTrial(true);
+
             String syllabus1 = "[" +
                     "{" +
                     "\"id\": \"c1\", " +
                     "\"title\": \"啟程：物件導向基礎\", " +
                     "\"units\": [" +
-                    "{\"id\": \"c1-u1\", \"title\": \"單元 1：物件導向思維\", \"videoId\": \"c101\"}, " +
+                    "{\"id\": \"c1-u1\", \"title\": \"單元 1：物件導向思維 (試聽)\", \"videoId\": \"c101\"}, " +
                     "{\"id\": \"c1-u2\", \"title\": \"單元 2：封裝、繼承、多型\", \"videoId\": \"c102\"}, " +
                     "{\"id\": \"c1-u3\", \"title\": \"單元 3：介面與抽象類別\", \"videoId\": \"c103\"}" +
                     "]" +
@@ -57,8 +60,10 @@ public class DataSeeder implements CommandLineRunner {
             c2.setHighlight(false);
             c2.setPromoText(null);
 
-            // 修正：unit.id 加上前綴 (ch1-u1)，videoId 保持不變
-            // 這樣 UnitProgress 就能正確區分不同章節的單元
+            // 設定：推薦顯示在首頁，但不開放試聽
+            c2.setRecommended(true);
+            c2.setHasTrial(false);
+
             String syllabus2 = "[" +
                     "{" +
                     "\"id\": \"ch1\", \"title\": \"規格驅動開發的前提\", \"date\": \"2025/09/29\", " +
@@ -75,21 +80,13 @@ public class DataSeeder implements CommandLineRunner {
                     "{\"id\": \"ch2-u2\", \"title\": \"單元 2：從自然語言到可執行規格\", \"videoId\": \"ch202\"}, " +
                     "{\"id\": \"ch2-u3\", \"title\": \"單元 3：案例實作\", \"videoId\": \"ch203\"}" +
                     "]" +
-                    "}," +
-                    "{" +
-                    "\"id\": \"ch3\", \"title\": \"80% 自動化：測試驅動開發\", \"date\": \"2025/11/03\", " +
-                    "\"units\": [" +
-                    "{\"id\": \"ch3-u1\", \"title\": \"單元 1：TDD 核心循環\", \"videoId\": \"ch301\"}, " +
-                    "{\"id\": \"ch3-u2\", \"title\": \"單元 2：紅燈、綠燈、重構\", \"videoId\": \"ch302\"}, " +
-                    "{\"id\": \"ch3-u3\", \"title\": \"單元 3：AI 輔助 TDD\", \"videoId\": \"ch303\"}" +
-                    "]" +
                     "}" +
                     "]";
             c2.setSyllabusJson(syllabus2);
 
             courseRepository.save(c2);
 
-            System.out.println("--- 課程資料初始化完成 (v6: ID Unique Fix) ---");
+            System.out.println("--- 課程資料初始化完成 (v8: No Mock Data) ---");
         }
     }
 }
