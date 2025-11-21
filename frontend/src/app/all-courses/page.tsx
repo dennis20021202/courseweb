@@ -141,7 +141,7 @@ export default function AllCoursesPage() {
                                             onClick={() => handleTrial(course.id)}
                                             className="flex-1 py-2 border border-[#fbbf24] text-[#fbbf24] rounded-lg text-sm font-bold hover:bg-[#fbbf24]/10 transition"
                                        >
-                                           試聽
+                                           立刻試聽
                                        </button>
                                    )}
                                    <button 
@@ -154,7 +154,7 @@ export default function AllCoursesPage() {
                                                 : "bg-[#fbbf24] text-black hover:bg-yellow-300"
                                        }`}
                                    >
-                                       {isPurchased ? "去上課" : isPending ? "繼續付款" : "購買"}
+                                       {isPurchased ? "去上課" : isPending ? "繼續付款" : "立刻購買"}
                                    </button>
                                </div>
                            </div>
