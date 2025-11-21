@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # 1. 資料庫服務 (PostgreSQL)
+  # 1. 資料庫服務
   db:
     image: postgres:15-alpine
     container_name: waterball-db
@@ -20,7 +20,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # 2. 後端服務 (Spring Boot)
+  # 2. 後端服務
   backend:
     build: ./backend
     container_name: waterball-backend
@@ -28,41 +28,39 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      # 設定影片上傳路徑指向我們掛載的容器內路徑
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:postgresql://db:5432/${POSTGRES_DB}}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-${POSTGRES_USER}}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-${POSTGRES_PASSWORD}}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: ${SPRING_JPA_HIBERNATE_DDL_AUTO:-update}
       APP_VIDEO_UPLOAD_DIR: /shared/videos
     volumes:
-      # [新增] 將前端的 videos 資料夾掛載到後端容器的 /shared/videos
-      # 這樣後端寫入這裡，就等於寫入 frontend/public/videos
-      - ./frontend/public/videos:/shared/videos
+      # [生產環境] 使用具名卷軸，確保資料在 Zeabur 上持久化
+      - video-data:/shared/videos
     depends_on:
       db:
         condition: service_healthy
 
-  # 3. 前端服務 (Next.js)
+  # 3. 前端服務
   frontend:
     build: 
       context: ./frontend
-      target: deps 
+      target: runner # 生產環境使用 runner 階段 (最小化映像檔)
     container_name: waterball-frontend
     restart: on-failure
     ports:
       - "3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-      WATCHPACK_POLLING: "true" 
+      # 生產環境通常不需要 Polling
+      WATCHPACK_POLLING: "false"
     volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
-    command: npm run dev
+      # [生產環境] 僅掛載影片資料卷軸
+      # 注意：這裡不掛載 ./frontend:/app，因為生產環境是用 build 好的映像檔
+      - video-data:/app/public/videos
     depends_on:
       - backend
       
-  # 4. 資料庫 GUI 服務 (pgAdmin)
+  # 4. 資料庫 GUI (生產環境預設不啟動)
   pgadmin:
     image: dpage/pgadmin4
     container_name: waterball-pgadmin
@@ -74,6 +72,8 @@ services:
       - "5050:80"
     volumes:
       - pgadmin-data:/var/lib/pgadmin
+    # 設定 profile，讓它在沒有指定時不會啟動 (節省 Zeabur 資源)
+    profiles: ["tools"]
     depends_on:
       db:
         condition: service_healthy
@@ -81,3 +81,4 @@ services:
 volumes:
   db-data:
   pgadmin-data:
+  video-data: # 生產環境影片儲存區

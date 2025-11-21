@@ -10,8 +10,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# 這裡會執行 next build
-# 注意：請確保你的 next.config.js 有設定 output: 'standalone' (下方說明)
+# 確保 next.config.ts 中有設定 output: 'standalone'
 RUN npm run build
 
 # --- 第三階段：執行環境 ---
@@ -28,6 +27,11 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# [關鍵新增] 建立 videos 目錄並設定權限
+# 因為我們要在這裡掛載 Volume，必須確保 nextjs 使用者有權限讀取/寫入(如果需要的話)
+# 雖然主要由後端寫入，但前端需要讀取權限
+RUN mkdir -p /app/public/videos && chown nextjs:nodejs /app/public/videos
 
 USER nextjs
 

@@ -8,6 +8,7 @@ Thumbs.db
 .classpath
 .project
 *.log
+docker-compose.override.yml
 
 # --- Docker 相關 ---
 # 忽略 Docker 產生的覆寫檔或本地資料夾 (如果有掛載本地目錄)
